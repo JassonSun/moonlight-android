@@ -14,7 +14,8 @@
 #define LOGD(...)
 #endif
 
-const char* hisiDecoderPrefixes[] = {"omx.hisi"};
+const char* kirinDecoderPrefixes[] = {"omx.hisi"};
+const char* exynosDecoderPrefixes[] = {"omx.exynos"};
 const char* qualcommDecoderPrefixes[] = {"omx.qcom", "c2.qti"};
 const char* baselineProfileHackPrefixes[] = {"omx.intel"};
 const char* spsFixupBitstreamFixupDecoderPrefixes[] = {"omx.nvidia", "omx.qcom", "omx.brcm"};
@@ -73,7 +74,7 @@ int _Build_VERSION_SDK_INT() {
     return sdk_ver;
 }
 
-#define IS_DECODER_IN_LIST(a, b) isDecoderInList(a, sizeof(a)/sizeof(*a), b);
+#define IS_DECODER_IN_LIST(a, b) isDecoderInList(a, sizeof(a)/sizeof(*a), b)
 
 bool MediaCodecHelper_decoderSupportsQcomVendorLowLatency(const char* decoderName) {
     // MediaCodec vendor extension support was introduced in Android 8.0:
@@ -84,7 +85,7 @@ bool MediaCodecHelper_decoderSupportsQcomVendorLowLatency(const char* decoderNam
 
 bool MediaCodecHelper_decoderSupportsHisiVendorLowLatency(const char* decoderName) {
     return //Build_VERSION_SDK_INT >= Build_VERSION_CODES_O &&
-            IS_DECODER_IN_LIST(hisiDecoderPrefixes, decoderName);
+            IS_DECODER_IN_LIST(kirinDecoderPrefixes, decoderName);
 }
 
 bool MediaCodecHelper_decoderNeedsBaselineSpsHack(const char* decoderName) {
@@ -93,4 +94,65 @@ bool MediaCodecHelper_decoderNeedsBaselineSpsHack(const char* decoderName) {
 
 bool MediaCodecHelper_decoderNeedsSpsBitstreamRestrictions(const char* decoderName) {
     return IS_DECODER_IN_LIST(spsFixupBitstreamFixupDecoderPrefixes, decoderName);
+}
+
+bool MediaCodecHelper_decoderSupportsAndroidRLowLatency(/*MediaCodecInfo decoderInfo, String mimeType*/) {
+
+//    if (Build_VERSION_SDK_INT >= Build_VERSION_CODES_R) {
+//        if (decoderInfo.getCapabilitiesForType(mimeType).isFeatureSupported(CodecCapabilities.FEATURE_LowLatency)) {
+//            LimeLog.info("Low latency decoding mode supported (FEATURE_LowLatency)");
+//            return true;
+//        }
+//    }
+//
+//    return false;
+    return true;
+}
+
+bool MediaCodecHelper_needAlwaysDropFrames(const char* decoderName) {
+    return IS_DECODER_IN_LIST(kirinDecoderPrefixes, decoderName);
+}
+
+void MediaCodecHelper_setDecoderLowLatencyOptions(AMediaFormat* videoFormat, const char* decoderName, bool maxOperatingRate) {
+
+    // android 30+ 及其以上才支持低延迟模式，可以设置这个值
+    if (Build_VERSION_SDK_INT >= Build_VERSION_CODES_R && MediaCodecHelper_decoderSupportsAndroidRLowLatency()) {
+        AMediaFormat_setInt32(videoFormat, /*AMEDIAFORMAT_KEY_LATENCY*/"latency", 0);
+    }else if (Build_VERSION_SDK_INT >= Build_VERSION_CODES_M) {
+        // MediaCodec supports vendor-defined format keys using the "vendor.<extension name>.<parameter name>" syntax.
+        // These allow access to functionality that is not exposed through documented MediaFormat.KEY_* values.
+        // https://cs.android.com/android/platform/superproject/+/master:hardware/qcom/sdm845/media/mm-video-v4l2/vidc/common/inc/vidc_vendor_extensions.h;l=67
+        //
+        // MediaCodec vendor extension support was introduced in Android 8.0:
+        // https://cs.android.com/android/_/android/platform/frameworks/av/+/01c10f8cdcd58d1e7025f426a72e6e75ba5d7fc2
+        if (Build_VERSION_SDK_INT >= Build_VERSION_CODES_O) {
+            // Try vendor-specific low latency options
+            if (IS_DECODER_IN_LIST(qualcommDecoderPrefixes, decoderName)) {
+                // Examples of Qualcomm's vendor extensions for Snapdragon 845:
+                // https://cs.android.com/android/platform/superproject/+/master:hardware/qcom/sdm845/media/mm-video-v4l2/vidc/vdec/src/omx_vdec_extensions.hpp
+                // https://cs.android.com/android/_/android/platform/hardware/qcom/sm8150/media/+/0621ceb1c1b19564999db8293574a0e12952ff6c
+                AMediaFormat_setInt32(videoFormat, "vendor.qti-ext-dec-low-latency.enable", 1);
+            }
+            else if (IS_DECODER_IN_LIST(kirinDecoderPrefixes, decoderName)) {
+                // Kirin low latency options
+                // https://developer.huawei.com/consumer/cn/forum/topic/0202325564295980115
+                AMediaFormat_setInt32(videoFormat, "vendor.hisi-ext-low-latency-video-dec.video-scene-for-low-latency-req", 1);
+                AMediaFormat_setInt32(videoFormat, "vendor.hisi-ext-low-latency-video-dec.video-scene-for-low-latency-rdy", -1);
+//                alwaysDropFrames = true;
+            }
+            else if (IS_DECODER_IN_LIST(exynosDecoderPrefixes, decoderName)) {
+                // Exynos low latency option for H.264 decoder
+                AMediaFormat_setInt32(videoFormat, "vendor.rtc-ext-dec-low-latency.enable", 1);
+            }
+        }
+        else if (IS_DECODER_IN_LIST(qualcommDecoderPrefixes, decoderName)) {
+            // This is an older low latency option used on some Qualcomm devices
+            AMediaFormat_setInt32(videoFormat, "vt-low-latency", 1);
+        }
+
+        if (maxOperatingRate) {
+            //videoFormat.setInteger(MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE);
+            AMediaFormat_setInt32(videoFormat, "operating-rate", 32767); // Short.MAX_VALUE
+        }
+    }
 }

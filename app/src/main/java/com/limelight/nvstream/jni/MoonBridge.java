@@ -25,6 +25,10 @@ public class MoonBridge {
     public static final int VIDEO_FORMAT_MASK_H264 = 0x00FF;
     public static final int VIDEO_FORMAT_MASK_H265 = 0xFF00;
 
+    public static final int ENCFLG_NONE = 0;
+    public static final int ENCFLG_AUDIO = 1;
+    public static final int ENCFLG_ALL = 0xFFFFFFFF;
+
     public static final int BUFFER_TYPE_PICDATA = 0;
     public static final int BUFFER_TYPE_SPS = 1;
     public static final int BUFFER_TYPE_PPS = 2;
@@ -267,6 +271,7 @@ public class MoonBridge {
                                               boolean enableHdr,
                                               int hevcBitratePercentageMultiplier,
                                               int clientRefreshRateX100,
+                                              int encryptionFlags,
                                               byte[] riAesKey, byte[] riAesIv,
                                               int videoCapabilities);
 
@@ -320,8 +325,8 @@ public class MoonBridge {
     public static native ByteBuffer nativeCreate(int size);
     public static native void nativeFree(ByteBuffer buffer);
 
-    public static native long createMediaCodec(Surface surface, String name, String mimeType, int width, int height, int refreshRate, int prefsFps, boolean lowLatency,
-    boolean adaptivePlayback, boolean maxOperatingRate, boolean constrainedHighProfile, boolean refFrameInvalidationActive, boolean isExynos4);
+    public static native long createMediaCodec(Surface surface, String name, String mimeType, int width, int height, int refreshRate, int prefsFps,
+    boolean adaptivePlayback, boolean constrainedHighProfile, boolean refFrameInvalidationActive, boolean isExynos4, boolean maxOperatingRate);
     public static native void setBufferCount(long videoDecoder, int bufferCount);
 
     public static native void deleteMediaCodec(long videoDecoder);

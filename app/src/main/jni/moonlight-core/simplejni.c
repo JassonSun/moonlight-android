@@ -175,12 +175,12 @@ Java_com_limelight_nvstream_jni_MoonBridge_nativeFree(JNIEnv *env, jclass clazz,
 
 JNIEXPORT jlong JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_createMediaCodec(JNIEnv *env, jclass clazz, jobject surface, jstring name,
-                                                            jstring mime_type, jint width, jint height, jint refreshRate, jint prefsFps, jboolean lowLatency,
-                                                            jboolean adaptivePlayback, jboolean maxOperatingRate, jboolean constrainedHighProfile, jboolean refFrameInvalidationActive, jboolean isExynos4) {
+                                                            jstring mime_type, jint width, jint height, jint refreshRate, jint prefsFps,
+                                                            jboolean adaptivePlayback, jboolean constrainedHighProfile, jboolean refFrameInvalidationActive, jboolean isExynos4, jboolean maxOperatingRate) {
     const char *c_name = (*env)->GetStringUTFChars(env, name, 0);
     const char *c_mime_type = (*env)->GetStringUTFChars(env, mime_type, 0);
 
-    VideoDecoder* videoDecoder = VideoDecoder_create(env, surface, c_name, c_mime_type, width, height, refreshRate, prefsFps, lowLatency, adaptivePlayback, maxOperatingRate);
+    VideoDecoder* videoDecoder = VideoDecoder_create(env, surface, c_name, c_mime_type, width, height, refreshRate, prefsFps, adaptivePlayback, maxOperatingRate);
 
     videoDecoder->constrainedHighProfile = constrainedHighProfile;
     videoDecoder->refFrameInvalidationActive = refFrameInvalidationActive;

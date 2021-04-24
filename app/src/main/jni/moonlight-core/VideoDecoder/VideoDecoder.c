@@ -351,7 +351,7 @@ int dequeueOutputBuffer(VideoDecoder* videoDecoder, AMediaCodecBufferInfo *info,
     return outputIndex;
 }
 
-VideoDecoder* VideoDecoder_create(JNIEnv *env, jobject surface, const char* decoderName, const char* mimeType, int width, int height, int refreshRate, int prefsFps, bool lowLatency, bool adaptivePlayback, bool maxOperatingRate) {
+VideoDecoder* VideoDecoder_create(JNIEnv *env, jobject surface, const char* decoderName, const char* mimeType, int width, int height, int refreshRate, int prefsFps, bool adaptivePlayback, bool maxOperatingRate) {
 
     LOGT("decoderName %s", decoderName);
 
@@ -383,37 +383,9 @@ VideoDecoder* VideoDecoder_create(JNIEnv *env, jobject surface, const char* deco
         AMediaFormat_setInt32(videoFormat, /*AMEDIAFORMAT_KEY_HEIGHT*/"height", height);
     }
 
-    // android 30+ 及其以上才支持低延迟模式，可以设置这个值
-    if (Build_VERSION_SDK_INT >= Build_VERSION_CODES_R && lowLatency) {
-        AMediaFormat_setInt32(videoFormat, /*AMEDIAFORMAT_KEY_LATENCY*/"latency", 0);
-    }else if (Build_VERSION_SDK_INT >= Build_VERSION_CODES_M) {
-        // Set the Qualcomm vendor low latency extension if the Android R option is unavailable
-        if (MediaCodecHelper_decoderSupportsQcomVendorLowLatency(decoderName)) {
-            // MediaCodec supports vendor-defined format keys using the "vendor.<extension name>.<parameter name>" syntax.
-            // These allow access to functionality that is not exposed through documented MediaFormat.KEY_* values.
-            // https://cs.android.com/android/platform/superproject/+/master:hardware/qcom/sdm845/media/mm-video-v4l2/vidc/common/inc/vidc_vendor_extensions.h;l=67
-            //
-            // Examples of Qualcomm's vendor extensions for Snapdragon 845:
-            // https://cs.android.com/android/platform/superproject/+/master:hardware/qcom/sdm845/media/mm-video-v4l2/vidc/vdec/src/omx_vdec_extensions.hpp
-            // https://cs.android.com/android/_/android/platform/hardware/qcom/sm8150/media/+/0621ceb1c1b19564999db8293574a0e12952ff6c
-            AMediaFormat_setInt32(videoFormat, "vendor.qti-ext-dec-low-latency.enable", 1);
-        }
+    MediaCodecHelper_setDecoderLowLatencyOptions(videoFormat, decoderName, maxOperatingRate);
 
-        // hisi low latency decode
-        // Support Kirin990/Kirin980/Kirin985/Kirin820/Kirin810
-        // if (MediaCodecHelper_decoderSupportsHisiVendorLowLatency("OMX.hisi.video.decoder.avc"))
-        if (MediaCodecHelper_decoderSupportsHisiVendorLowLatency(decoderName))
-        {
-            AMediaFormat_setInt32(videoFormat, "vendor.hisi-ext-low-latency-video-dec.video-scene-for-low-latency-req", 1);
-            AMediaFormat_setInt32(videoFormat, "vendor.hisi-ext-low-latency-video-dec.video-scene-for-low-latency-rdy", -1);
-            alwaysDropFrames = true;
-            LOGT("Hisi low latency %s", decoderName);
-        }
-
-        if (maxOperatingRate) {
-            AMediaFormat_setInt32(videoFormat, "operating-rate", 32767); // Short.MAX_VALUE
-        }
-    }
+    alwaysDropFrames = MediaCodecHelper_needAlwaysDropFrames(decoderName);
 
     /*
      * OMX.qcom.video.decoder.avc Xperia 1 II 索尼的产品好像默认启用在了android源代码里

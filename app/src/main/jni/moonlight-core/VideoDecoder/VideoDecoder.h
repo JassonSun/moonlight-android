@@ -74,7 +74,7 @@ typedef struct {
 } VideoDecoder;
 
 // Control
-VideoDecoder* VideoDecoder_create(JNIEnv *env, jobject surface, const char* decoderName, const char* mimeType, int width, int height, int refreshRate, int prefsFps, bool lowLatency, bool adaptivePlayback, bool maxOperatingRate);
+VideoDecoder* VideoDecoder_create(JNIEnv *env, jobject surface, const char* decoderName, const char* mimeType, int width, int height, int refreshRate, int prefsFps, bool adaptivePlayback, bool maxOperatingRate);
 void VideoDecoder_setLegacyFrameDropRendering(VideoDecoder* videoDecoder, bool enabled);
 void VideoDecoder_release(VideoDecoder* videoDecoder);
 void VideoDecoder_start(VideoDecoder* videoDecoder);

@@ -18,6 +18,7 @@ import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.CodecProfileLevel;
+import android.media.MediaFormat;
 import android.os.Build;
 
 import com.limelight.LimeLog;
@@ -39,10 +40,10 @@ public class MediaCodecHelper {
     private static final List<String> blacklisted49FpsDecoderPrefixes;
     private static final List<String> blacklisted59FpsDecoderPrefixes;
     private static final List<String> qualcommDecoderPrefixes;
+    private static final List<String> kirinDecoderPrefixes;
+    private static final List<String> exynosDecoderPrefixes;
 
-	public static final boolean IS_EMULATOR = Build.HARDWARE.equals("ranchu") || Build.HARDWARE.equals("cheets");
-	
-	private static final List<String> hisiDecoderPrefixes;
+    public static final boolean IS_EMULATOR = Build.HARDWARE.equals("ranchu") || Build.HARDWARE.equals("cheets");
 
     private static boolean isLowEndSnapdragon = false;
     private static boolean isAdreno620 = false;
@@ -148,7 +149,10 @@ public class MediaCodecHelper {
         // I know the Fire TV 2 and 3 works, so I'll whitelist Amazon devices which seem to actually be tested.
         if (Build.MANUFACTURER.equalsIgnoreCase("Amazon")) {
             whitelistedHevcDecoders.add("omx.mtk");
-            whitelistedHevcDecoders.add("omx.amlogic");
+
+            // This broke at some point on the Fire TV 3 and now the decoder
+            // never produces any output frames.
+            //whitelistedHevcDecoders.add("omx.amlogic");
         }
 
         // Plot twist: On newer Sony devices (BRAVIA_ATV2, BRAVIA_ATV3_4K, BRAVIA_UR1_4K) the H.264 decoder crashes
@@ -206,9 +210,18 @@ public class MediaCodecHelper {
 
         qualcommDecoderPrefixes.add("omx.qcom");
         qualcommDecoderPrefixes.add("c2.qti");
+    }
 
-        hisiDecoderPrefixes = new LinkedList<>();
-        hisiDecoderPrefixes.add("omx.hisi");
+    static {
+        kirinDecoderPrefixes = new LinkedList<>();
+
+        kirinDecoderPrefixes.add("omx.hisi");
+    }
+
+    static {
+        exynosDecoderPrefixes = new LinkedList<>();
+
+        exynosDecoderPrefixes.add("omx.exynos");
     }
 
     private static boolean isPowerVR(String glRenderer) {
@@ -357,7 +370,7 @@ public class MediaCodecHelper {
         return System.nanoTime() / 1000000L;
     }
 
-    public static boolean decoderSupportsLowLatency(MediaCodecInfo decoderInfo, String mimeType) {
+    private static boolean decoderSupportsAndroidRLowLatency(MediaCodecInfo decoderInfo, String mimeType) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
                 if (decoderInfo.getCapabilitiesForType(mimeType).isFeatureSupported(CodecCapabilities.FEATURE_LowLatency)) {
@@ -388,6 +401,47 @@ public class MediaCodecHelper {
                 !isAdreno620;
     }
 
+    public static void setDecoderLowLatencyOptions(MediaFormat videoFormat, MediaCodecInfo decoderInfo, String mimeType) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && decoderSupportsAndroidRLowLatency(decoderInfo, mimeType)) {
+            videoFormat.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
+        }
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // MediaCodec supports vendor-defined format keys using the "vendor.<extension name>.<parameter name>" syntax.
+            // These allow access to functionality that is not exposed through documented MediaFormat.KEY_* values.
+            // https://cs.android.com/android/platform/superproject/+/master:hardware/qcom/sdm845/media/mm-video-v4l2/vidc/common/inc/vidc_vendor_extensions.h;l=67
+            //
+            // MediaCodec vendor extension support was introduced in Android 8.0:
+            // https://cs.android.com/android/_/android/platform/frameworks/av/+/01c10f8cdcd58d1e7025f426a72e6e75ba5d7fc2
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // Try vendor-specific low latency options
+                if (isDecoderInList(qualcommDecoderPrefixes, decoderInfo.getName())) {
+                    // Examples of Qualcomm's vendor extensions for Snapdragon 845:
+                    // https://cs.android.com/android/platform/superproject/+/master:hardware/qcom/sdm845/media/mm-video-v4l2/vidc/vdec/src/omx_vdec_extensions.hpp
+                    // https://cs.android.com/android/_/android/platform/hardware/qcom/sm8150/media/+/0621ceb1c1b19564999db8293574a0e12952ff6c
+                    videoFormat.setInteger("vendor.qti-ext-dec-low-latency.enable", 1);
+                }
+                else if (isDecoderInList(kirinDecoderPrefixes, decoderInfo.getName())) {
+                    // Kirin low latency options
+                    // https://developer.huawei.com/consumer/cn/forum/topic/0202325564295980115
+                    videoFormat.setInteger("vendor.hisi-ext-low-latency-video-dec.video-scene-for-low-latency-req", 1);
+                    videoFormat.setInteger("vendor.hisi-ext-low-latency-video-dec.video-scene-for-low-latency-rdy", -1);
+                }
+                else if (isDecoderInList(exynosDecoderPrefixes, decoderInfo.getName())) {
+                    // Exynos low latency option for H.264 decoder
+                    videoFormat.setInteger("vendor.rtc-ext-dec-low-latency.enable", 1);
+                }
+            }
+            else if (isDecoderInList(qualcommDecoderPrefixes, decoderInfo.getName())) {
+                // This is an older low latency option used on some Qualcomm devices
+                videoFormat.setInteger("vt-low-latency", 1);
+            }
+
+            if (MediaCodecHelper.decoderSupportsMaxOperatingRate(decoderInfo.getName())) {
+                videoFormat.setInteger(MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE);
+            }
+        }
+    }
+
     public static boolean decoderSupportsAdaptivePlayback(MediaCodecInfo decoderInfo, String mimeType) {
         // Possibly enable adaptive playback on KitKat and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -411,20 +465,6 @@ public class MediaCodecHelper {
         }
         
         return false;
-    }
-
-    public static boolean decoderSupportsQcomVendorLowLatency(String decoderName) {
-        // MediaCodec vendor extension support was introduced in Android 8.0:
-        // https://cs.android.com/android/_/android/platform/frameworks/av/+/01c10f8cdcd58d1e7025f426a72e6e75ba5d7fc2
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                isDecoderInList(qualcommDecoderPrefixes, decoderName);
-    }
-
-    public static boolean decoderSupportsHisiVendorLowLatency(String decoderName) {
-        // MediaCodec vendor extension support was introduced in Android 8.0:
-        // https://cs.android.com/android/_/android/platform/frameworks/av/+/01c10f8cdcd58d1e7025f426a72e6e75ba5d7fc2
-        return //Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                isDecoderInList(hisiDecoderPrefixes, decoderName);
     }
 
     public static boolean decoderNeedsConstrainedHighProfile(String decoderName) {

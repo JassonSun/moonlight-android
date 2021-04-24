@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <media/NdkMediaExtractor.h>
 
 #define Build_VERSION_CODES_KITKAT 19
 #define Build_VERSION_CODES_LOLLIPOP 21
@@ -21,6 +22,10 @@ bool MediaCodecHelper_decoderSupportsHisiVendorLowLatency(const char* decoderNam
 
 bool MediaCodecHelper_decoderNeedsBaselineSpsHack(const char* decoderName);
 bool MediaCodecHelper_decoderNeedsSpsBitstreamRestrictions(const char* decoderName);
+
+bool MediaCodecHelper_needAlwaysDropFrames(const char* decoderName);
+
+void MediaCodecHelper_setDecoderLowLatencyOptions(AMediaFormat* videoFormat, const char* decoderName, bool maxOperatingRate);
 
 int _Build_VERSION_SDK_INT();
 
