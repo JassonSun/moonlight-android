@@ -50,10 +50,14 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.SurfaceTexture;
 import android.hardware.input.InputManager;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
+import android.opengl.GLES11Ext;
+import android.opengl.GLES20;
+import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -79,10 +83,16 @@ import android.widget.Toast;
 
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Locale;
+
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 
 
 public class Game extends Activity implements SurfaceHolder.Callback,
@@ -171,6 +181,55 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     public static final String EXTRA_APP_HDR = "HDR";
     public static final String EXTRA_SERVER_CERT = "ServerCert";
 
+    private int mTextureID;
+    private SurfaceTexture mSurfaceTexture;
+    private Surface mDecoderSurface;
+    private boolean updateSurface;
+    private int mProgram;
+    private int mAttribTextureCoordinate;
+    private int mAttribPosition;
+
+    public int createProgram(String vertexSource, String fragmentSource) {
+
+        int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexSource);
+        int pixelShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentSource);
+
+        int program = GLES20.glCreateProgram();
+        if (program != 0) {
+            GLES20.glAttachShader(program, vertexShader);
+//            checkGlError("glAttachShader");
+            GLES20.glAttachShader(program, pixelShader);
+//            checkGlError("glAttachShader");
+            GLES20.glLinkProgram(program);
+            int[] linkStatus = new int[1];
+            GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
+            if (linkStatus[0] != GLES20.GL_TRUE) {
+//                Log.e(TAG, "Could not link program: ");
+//                Log.e(TAG, GLES20.glGetProgramInfoLog(program));
+                GLES20.glDeleteProgram(program);
+                program = 0;
+            }
+        }
+        return program;
+    }
+
+    private int loadShader(int shaderType, String source) {
+        int shader = GLES20.glCreateShader(shaderType);
+        if (shader != 0) {
+            GLES20.glShaderSource(shader, source);
+            GLES20.glCompileShader(shader);
+            int[] compiled = new int[1];
+            GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
+            if (compiled[0] == 0) {
+//                Log.e(TAG, "Could not compile shader " + shaderType + ":");
+//                Log.e(TAG, GLES20.glGetShaderInfoLog(shader));
+                GLES20.glDeleteShader(shader);
+                shader = 0;
+            }
+        }
+        return shader;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -235,6 +294,141 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         streamView.setOnGenericMotionListener(this);
         streamView.setOnTouchListener(this);
         streamView.setInputCallbacks(this);
+
+        {
+
+            final float CUBE_NO_ROTATION[] = {
+                    -1.0f, -1.0f,
+                    1.0f, -1.0f,
+                    -1.0f, 1.0f,
+                    1.0f, 1.0f,
+            };
+
+            final float TEXTURE_NO_ROTATION[] = {
+                    0.0f, 1.0f,
+                    1.0f, 1.0f,
+                    0.0f, 0.0f,
+                    1.0f, 0.0f,
+            };
+
+            // initialize vertex Buffer for triangle
+            ByteBuffer vbb = ByteBuffer.allocateDirect(
+                    // (# of coordinate values * 4 bytes per float)
+                    CUBE_NO_ROTATION.length * 4);
+            vbb.order(ByteOrder.nativeOrder());// use the device hardware's native byte order
+            final FloatBuffer vertex = vbb.asFloatBuffer();  // create a floating point buffer from the ByteBuffer
+            vertex.put(CUBE_NO_ROTATION);    // add the coordinates to the FloatBuffer
+            vertex.position(0);
+
+            ByteBuffer vbb2 = ByteBuffer.allocateDirect(
+                    // (# of coordinate values * 4 bytes per float)
+                    TEXTURE_NO_ROTATION.length * 4);
+            vbb2.order(ByteOrder.nativeOrder());// use the device hardware's native byte order
+            final FloatBuffer textureCoordinate = vbb2.asFloatBuffer();  // create a floating point buffer from the ByteBuffer
+            textureCoordinate.put(TEXTURE_NO_ROTATION);    // add the coordinates to the FloatBuffer
+            textureCoordinate.position(0);
+
+            streamView.setEGLContextClientVersion(2);
+            streamView.setRenderer(new GLSurfaceView.Renderer() {
+                @Override
+                public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
+
+                    final String vertexShaderSourceOES =
+                            "attribute vec4 position;\n" +
+                                    "     attribute vec4 inputTextureCoordinate;\n" +
+                                    "     \n" +
+                                    "     varying vec2 textureCoordinate;\n" +
+                                    "     \n" +
+                                    "     void main()\n" +
+                                    "     {\n" +
+                                    "         gl_Position = position;\n" +
+                                    "         textureCoordinate = inputTextureCoordinate.xy;\n" +
+                                    "     }";
+
+                    final String fragmentShaderSourceOES =
+                            "#extension GL_OES_EGL_image_external : require\n" +
+                                    "precision mediump float;\n" +
+                                    "varying vec2 textureCoordinate;\n" +
+                                    "     \n" +
+                                    "     uniform samplerExternalOES inputImageTexture;\n" +
+                                    "     \n" +
+                                    "     void main()\n" +
+                                    "     {\n" +
+                                    "         gl_FragColor = texture2D(inputImageTexture, textureCoordinate);\n" +
+                                    "     }";
+
+                    // Prepare your shader program here
+                    mProgram = createProgram(vertexShaderSourceOES, fragmentShaderSourceOES);
+
+
+                    mAttribTextureCoordinate = GLES20.glGetAttribLocation(mProgram, "inputTextureCoordinate");
+                    mAttribPosition = GLES20.glGetAttribLocation(mProgram, "position");
+//            final int uniformTexture = GLES20.glGetUniformLocation(mProgram, "inputImageTexture");
+
+                    // Prepare texture handler
+                    int[] textures = new int[1];
+                    GLES20.glGenTextures(1, textures, 0);
+
+                    mTextureID = textures[0];
+                    GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, mTextureID);
+
+                    GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+                    GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+
+                    GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+                    GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+
+                    // Link the texture handler to surface texture
+                    mSurfaceTexture = new SurfaceTexture(mTextureID);
+                    mSurfaceTexture.setDefaultBufferSize(320, 240);
+                    mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
+                        @Override
+                        public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+//                    synchronized(updateSurface)
+                            {
+                                updateSurface = true;
+                            }
+                        }
+                    });
+
+                    // Create decoder surface
+                    mDecoderSurface = new Surface(mSurfaceTexture);
+
+                    decoderRenderer.setRenderSurface(mDecoderSurface);
+                }
+
+                @Override
+                public void onSurfaceChanged(GL10 gl10, int i, int i1) {
+                }
+
+                @Override
+                public void onDrawFrame(GL10 gl10) {
+
+                    // gl10.glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+                    // gl10.glClear(gl10.GL_COLOR_BUFFER_BIT);
+
+                    if (updateSurface) {
+                        mSurfaceTexture.updateTexImage(); // update surfacetexture if available
+                        updateSurface = false;
+                    }
+
+                    // use program
+                    GLES20.glUseProgram(mProgram);
+
+                    // bind texture
+                    GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+                    GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, mTextureID);
+
+                    GLES20.glVertexAttribPointer(mAttribPosition, 2, GLES20.GL_FLOAT, false, 0, vertex);
+                    GLES20.glEnableVertexAttribArray(mAttribPosition);
+
+                    GLES20.glVertexAttribPointer(mAttribTextureCoordinate, 2, GLES20.GL_FLOAT, false, 0, textureCoordinate);
+                    GLES20.glEnableVertexAttribArray(mAttribTextureCoordinate);
+
+                    GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+                }
+            });
+        }
 
         notificationOverlayView = findViewById(R.id.notificationOverlay);
 
@@ -1808,7 +2002,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         if (!attemptedConnection) {
             attemptedConnection = true;
 
-            decoderRenderer.setRenderTarget(holder);
+//            decoderRenderer.setRenderTarget(holder);
             conn.start(PlatformBinding.getAudioRenderer(), decoderRenderer, Game.this);
         }
     }

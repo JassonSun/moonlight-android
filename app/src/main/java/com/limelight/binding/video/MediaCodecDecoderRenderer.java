@@ -26,6 +26,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.util.Range;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 
 public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
@@ -137,6 +138,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
 
     public void setRenderTarget(SurfaceHolder renderTarget) {
         this.renderTarget = renderTarget;
+    }
+
+    private Surface renderSurface;
+
+    public void setRenderSurface(Surface surface) {
+        this.renderSurface = surface;
     }
 
     public MediaCodecDecoderRenderer(Context context, PreferenceConfiguration prefs,
@@ -318,7 +325,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
 
             boolean maxOperatingRate = MediaCodecHelper.decoderSupportsMaxOperatingRate(selectedDecoderInfo.getName());
 
-            nativeVideoDecoder = MoonBridge.createMediaCodec(renderTarget.getSurface(), selectedDecoderInfo.getName(), mimeType, width, height, redrawRate, prefs.fps,
+            nativeVideoDecoder = MoonBridge.createMediaCodec(/*renderTarget.getSurface()*/this.renderSurface, selectedDecoderInfo.getName(), mimeType, width, height, redrawRate, prefs.fps,
                     adaptivePlayback, constrainedHighProfile, refFrameInvalidationActive, isExynos4, maxOperatingRate);
 
             if (nativeVideoDecoder == 0) {

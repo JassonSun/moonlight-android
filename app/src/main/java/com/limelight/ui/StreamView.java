@@ -2,11 +2,13 @@ package com.limelight.ui;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.opengl.GLSurfaceView;
+import android.os.Bundle;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.SurfaceView;
 
-public class StreamView extends SurfaceView {
+public class StreamView extends GLSurfaceView {
     private double desiredAspectRatio;
     private InputCallbacks inputCallbacks;
 
@@ -26,14 +28,14 @@ public class StreamView extends SurfaceView {
         super(context, attrs);
     }
 
-    public StreamView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-    }
-
-    @TargetApi(21)
-    public StreamView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-    }
+//    public StreamView(Context context, AttributeSet attrs, int defStyleAttr) {
+//        super(context, attrs, defStyleAttr);
+//    }
+//
+//    @TargetApi(21)
+//    public StreamView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+//        super(context, attrs, defStyleAttr, defStyleRes);
+//    }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
