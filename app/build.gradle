@@ -9,9 +9,9 @@ android {
     defaultConfig {
         minSdkVersion 21 // 28
         targetSdkVersion 30
-
-        versionName "9.8.7"
-        versionCode = 259
+        
+        versionName "9.9"
+        versionCode = 260
     }
 
     flavorDimensions "root"

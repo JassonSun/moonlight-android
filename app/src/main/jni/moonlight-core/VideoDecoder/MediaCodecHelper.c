@@ -145,10 +145,6 @@ void MediaCodecHelper_setDecoderLowLatencyOptions(AMediaFormat* videoFormat, con
                 AMediaFormat_setInt32(videoFormat, "vendor.rtc-ext-dec-low-latency.enable", 1);
             }
         }
-        else if (IS_DECODER_IN_LIST(qualcommDecoderPrefixes, decoderName)) {
-            // This is an older low latency option used on some Qualcomm devices
-            AMediaFormat_setInt32(videoFormat, "vt-low-latency", 1);
-        }
 
         if (maxOperatingRate) {
             //videoFormat.setInteger(MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE);

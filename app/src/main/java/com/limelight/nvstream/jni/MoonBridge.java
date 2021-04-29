@@ -3,7 +3,6 @@ package com.limelight.nvstream.jni;
 import android.media.MediaCodec;
 import android.view.Surface;
 
-import com.limelight.binding.video.MediaCodecInputBuffer;
 import com.limelight.binding.video.VideoStats;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.av.audio.AudioRenderer;
