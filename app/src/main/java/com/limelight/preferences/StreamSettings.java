@@ -3,6 +3,7 @@ package com.limelight.preferences;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.media.MediaCodecInfo;
 import android.os.Build;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
+import android.util.DisplayMetrics;
 import android.util.Range;
 import android.view.Display;
 import android.view.LayoutInflater;
@@ -28,6 +30,7 @@ import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -206,7 +209,7 @@ public class StreamSettings extends Activity {
 
             // hide on-screen controls category on non touch screen devices
             if (!getActivity().getPackageManager().
-                    hasSystemFeature("android.hardware.touchscreen")) {
+                    hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) {
                 {
                     PreferenceCategory category =
                             (PreferenceCategory) findPreference("category_onscreen_controls");
@@ -268,7 +271,12 @@ public class StreamSettings extends Activity {
                     int width = Math.max(candidate.getPhysicalWidth(), candidate.getPhysicalHeight());
                     int height = Math.min(candidate.getPhysicalWidth(), candidate.getPhysicalHeight());
 
-                    addNativeResolutionEntry(width, height);
+                    // Some TVs report strange values here, so let's avoid native resolutions on a TV
+                    // unless they report greater than 4K resolutions.
+                    if (!getActivity().getPackageManager().hasSystemFeature(PackageManager.FEATURE_TELEVISION) ||
+                            (width > 3840 || height > 2160)) {
+                        addNativeResolutionEntry(width, height);
+                    }
 
                     if ((width >= 3840 || height >= 2160) && maxSupportedResW < 3840) {
                         maxSupportedResW = 3840;
@@ -369,62 +377,56 @@ public class StreamSettings extends Activity {
                     // Never remove 720p
                 }
             }
-            else {
-                Display display = getActivity().getWindowManager().getDefaultDisplay();
-                int width = Math.max(display.getWidth(), display.getHeight());
-                int height = Math.min(display.getWidth(), display.getHeight());
+            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                // On Android 4.2 and later, we can get the true metrics via the
+                // getRealMetrics() function (unlike the lies that getWidth() and getHeight()
+                // tell to us).
+                DisplayMetrics metrics = new DisplayMetrics();
+                getActivity().getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+                int width = Math.max(metrics.widthPixels, metrics.heightPixels);
+                int height = Math.min(metrics.widthPixels, metrics.heightPixels);
                 addNativeResolutionEntry(width, height);
             }
-
-            // 设置
-//            extendRefreshRate.add(96); for test
-            ArrayList<Integer> supportRefreshRate = new ArrayList<Integer>(extendRefreshRate);
-            for (int i=0; i<normalRefreshRate.length; i++) {
-
-                // remove unsupport refresh rate
-                if (!PreferenceConfiguration.readPreferences(this.getActivity()).unlockFps && normalRefreshRate[i] > maxSupportedFps) {
-                    continue;
+            else {
+                // On Android 4.1, we have to resort to reflection to invoke hidden APIs
+                // to get the real screen dimensions.
+                Display display = getActivity().getWindowManager().getDefaultDisplay();
+                try {
+                    Method getRawHeightFunc = Display.class.getMethod("getRawHeight");
+                    Method getRawWidthFunc = Display.class.getMethod("getRawWidth");
+                    int width = (Integer) getRawWidthFunc.invoke(display);
+                    int height = (Integer) getRawHeightFunc.invoke(display);
+                    addNativeResolutionEntry(Math.max(width, height), Math.min(width, height));
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-                supportRefreshRate.add(normalRefreshRate[i]);
             }
 
-            // add current refresh rate
-            int refreshRate = (int)getActivity().getWindowManager().getDefaultDisplay().getRefreshRate();
-            if (!supportRefreshRate.contains(refreshRate)) {
-                supportRefreshRate.add(refreshRate);
+            if (!PreferenceConfiguration.readPreferences(this.getActivity()).unlockFps) {
+                // We give some extra room in case the FPS is rounded down
+                if (maxSupportedFps < 118) {
+                    removeValue(PreferenceConfiguration.FPS_PREF_STRING, "120", new Runnable() {
+                        @Override
+                        public void run() {
+                            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(SettingsFragment.this.getActivity());
+                            setValue(PreferenceConfiguration.FPS_PREF_STRING, "90");
+                            resetBitrateToDefault(prefs, null, null);
+                        }
+                    });
+                }
+                if (maxSupportedFps < 88) {
+                    // 1080p is unsupported
+                    removeValue(PreferenceConfiguration.FPS_PREF_STRING, "90", new Runnable() {
+                        @Override
+                        public void run() {
+                            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(SettingsFragment.this.getActivity());
+                            setValue(PreferenceConfiguration.FPS_PREF_STRING, "60");
+                            resetBitrateToDefault(prefs, null, null);
+                        }
+                    });
+                }
+                // Never remove 30 FPS or 60 FPS
             }
-
-            // sorted
-            Collections.sort(supportRefreshRate);
-
-            resetRefreshRate(supportRefreshRate, refreshRate);
-
-//            if (!PreferenceConfiguration.readPreferences(this.getActivity()).unlockFps) {
-//                // We give some extra room in case the FPS is rounded down
-//                if (maxSupportedFps < 118) {
-//                    removeValue(PreferenceConfiguration.FPS_PREF_STRING, "120", new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(SettingsFragment.this.getActivity());
-//                            setValue(PreferenceConfiguration.FPS_PREF_STRING, "90");
-//                            resetBitrateToDefault(prefs, null, null);
-//                        }
-//                    });
-//                }
-//                if (maxSupportedFps < 88) {
-//                    // 1080p is unsupported
-//                    removeValue(PreferenceConfiguration.FPS_PREF_STRING, "90", new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(SettingsFragment.this.getActivity());
-//                            setValue(PreferenceConfiguration.FPS_PREF_STRING, "60");
-//                            resetBitrateToDefault(prefs, null, null);
-//                        }
-//                    });
-//                }
-//                // Never remove 30 FPS or 60 FPS
-//            }
-
 
             // Android L introduces proper 7.1 surround sound support. Remove the 7.1 option
             // for earlier versions of Android to prevent AudioTrack initialization issues.

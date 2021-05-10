@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        nonRootRelease {
+            storeFile file('/Users/xingbi/android-key/rexq57')
+            storePassword 'wzbbj5213637aC'
+            keyAlias 'key0'
+            keyPassword 'wzbbj5213637aC'
+        }
+    }
 
     ndkVersion "22.1.7171670"
 
@@ -9,9 +17,11 @@ android {
     defaultConfig {
         minSdkVersion 21 // 28
         targetSdkVersion 30
-        
-        versionName "9.9"
-        versionCode = 260
+
+        signingConfig signingConfigs.nonRootRelease
+
+        versionName "9.9.2"
+        versionCode = 263
     }
 
     flavorDimensions "root"
