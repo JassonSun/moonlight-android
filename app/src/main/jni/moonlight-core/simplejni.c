@@ -118,6 +118,27 @@ Java_com_limelight_nvstream_jni_MoonBridge_testClientConnectivity(JNIEnv *env, j
 }
 
 JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_getPortFlagsFromStage(JNIEnv *env, jclass clazz, jint stage) {
+    return LiGetPortFlagsFromStage(stage);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_getPortFlagsFromTerminationErrorCode(JNIEnv *env, jclass clazz, jint errorCode) {
+    return LiGetPortFlagsFromTerminationErrorCode(errorCode);
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_getEstimatedRttInfo(JNIEnv *env, jclass clazz) {
+    uint32_t rtt, variance;
+
+    if (!LiGetEstimatedRttInfo(&rtt, &variance)) {
+        return -1;
+    }
+
+    return ((uint64_t)rtt << 32U) | variance;
+}
+
+JNIEXPORT jint JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_getPortFromPortFlagIndex(JNIEnv *env, jclass clazz, jint portFlagIndex) {
     return LiGetPortFromPortFlagIndex(portFlagIndex);
 }
@@ -126,16 +147,6 @@ JNIEXPORT jstring JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_getProtocolFromPortFlagIndex(JNIEnv *env, jclass clazz, jint portFlagIndex) {
     int protocol = LiGetProtocolFromPortFlagIndex(portFlagIndex);
     return (*env)->NewStringUTF(env, protocol == IPPROTO_TCP ? "TCP" : "UDP");
-}
-
-JNIEXPORT jint JNICALL
-Java_com_limelight_nvstream_jni_MoonBridge_getPortFlagsFromStage(JNIEnv *env, jclass clazz, jint stage) {
-    return LiGetPortFlagsFromStage(stage);
-}
-
-JNIEXPORT jint JNICALL
-Java_com_limelight_nvstream_jni_MoonBridge_getPortFlagsFromTerminationErrorCode(JNIEnv *env, jclass clazz, jint errorCode) {
-    return LiGetPortFlagsFromTerminationErrorCode(errorCode);
 }
 
 JNIEXPORT void JNICALL
@@ -229,7 +240,18 @@ Java_com_limelight_nvstream_jni_MoonBridge_formatDecoderInfo(JNIEnv *env, jclass
                                                              jlong video_decoder, jstring format) {
     const char* c_format = (*env)->GetStringUTFChars(env, format, 0);
 
-    const char* result = VideoDecoder_formatInfo((VideoDecoder*)video_decoder, c_format);
+    uint64_t rttInfo;
+    {
+        uint32_t rtt, variance;
+
+        if (!LiGetEstimatedRttInfo(&rtt, &variance)) {
+            rttInfo = -1;
+        } else {
+            rttInfo = ((uint64_t)rtt << 32U) | variance;
+        }
+    }
+
+    const char* result = VideoDecoder_formatInfo((VideoDecoder*)video_decoder, c_format, rttInfo);
 
     (*env)->ReleaseStringUTFChars(env, format, c_format);
     

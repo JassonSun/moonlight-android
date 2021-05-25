@@ -1291,8 +1291,7 @@ void VideoDecoder_releaseTempBuffer(void* buffer) {
     } pthread_mutex_unlock(&videoDecoder->lock);
 }
 
-
-const char* VideoDecoder_formatInfo(VideoDecoder* videoDecoder, const char* format) {
+const char* VideoDecoder_formatInfo(VideoDecoder* videoDecoder, const char* format, uint64_t rttInfo) {
     
     char* tmp[50];
     sprintf(tmp, "%dx%d", videoDecoder->initialWidth, videoDecoder->initialHeight);
@@ -1305,14 +1304,15 @@ const char* VideoDecoder_formatInfo(VideoDecoder* videoDecoder, const char* form
 
     float decodeTimeMs = (float)lastTwo.decoderTimeMs / lastTwo.totalFramesReceived;
     sprintf(videoDecoder->infoBuffer, format,
-                        tmp,
-                        decoder,
-                        fps.totalFps,
-                        fps.receivedFps,
-                        fps.renderedFps,
-                        (float)lastTwo.framesLost / lastTwo.totalFrames * 100,
-                        ((float)lastTwo.totalTimeMs / lastTwo.totalFramesReceived) - decodeTimeMs,
-                        decodeTimeMs);
+                        tmp, fps.totalFps
+                        ,decoder
+                        ,(float)fps.receivedFps
+                        ,fps.renderedFps
+                        ,(float)lastTwo.framesLost / lastTwo.totalFrames * 100
+                        ,(int)(rttInfo >> 32), (int)rttInfo
+                        ,((float)lastTwo.totalTimeMs / lastTwo.totalFramesReceived) - decodeTimeMs
+                        ,decodeTimeMs
+                        );
 //    sprintf(videoDecoder->infoBuffer, "%d %d %ld\n%d %d %ld",
 //            videoDecoder->lastWindowVideoStats.totalFramesReceived, videoDecoder->lastWindowVideoStats.totalFramesRendered, videoDecoder->lastWindowVideoStats.totalTimeMs,
 //            videoDecoder->activeWindowVideoStats.totalFramesReceived, videoDecoder->activeWindowVideoStats.totalFramesRendered, videoDecoder->activeWindowVideoStats.totalTimeMs);

@@ -88,7 +88,7 @@ void VideoDecoder_getTempBuffer(void** buffer, size_t* bufsize);
 void VideoDecoder_releaseTempBuffer(void* buffer);
 
 // 格式化解码器信息
-const char* VideoDecoder_formatInfo(VideoDecoder* videoDecoder, const char* format);
+const char* VideoDecoder_formatInfo(VideoDecoder* videoDecoder, const char* format, uint64_t rttInfo);
 
 // This is called once for each frame-start NALU. This means it will be called several times
 // for an IDR frame which contains several parameter sets and the I-frame data.

@@ -117,7 +117,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
         // for even required levels of HEVC.
         MediaCodecInfo decoderInfo = MediaCodecHelper.findProbableSafeDecoder("video/hevc", -1);
         if (decoderInfo != null) {
-            if (!MediaCodecHelper.decoderIsWhitelistedForHevc(decoderInfo.getName(), meteredNetwork)) {
+            if (!MediaCodecHelper.decoderIsWhitelistedForHevc(decoderInfo.getName(), meteredNetwork, prefs)) {
                 LimeLog.info("Found HEVC decoder, but it's not whitelisted - "+decoderInfo.getName());
 
                 // HDR implies HEVC forced on, since HEVCMain10HDR10 is required for HDR.
@@ -508,10 +508,25 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
             infoTimer.cancel();
         // if (prefs.enablePerfOverlay) {
         // Always show
+
+        final String format;
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.append(context.getString(R.string.perf_overlay_streamdetails)).append('\n');
+            sb.append(context.getString(R.string.perf_overlay_decoder)).append('\n');
+            sb.append(context.getString(R.string.perf_overlay_incomingfps)).append('\n');
+            sb.append(context.getString(R.string.perf_overlay_renderingfps)).append('\n');
+            sb.append(context.getString(R.string.perf_overlay_netdrops)).append('\n');
+            sb.append(context.getString(R.string.perf_overlay_netlatency)).append('\n');
+            sb.append(context.getString(R.string.perf_overlay_recvtime)).append('\n');
+            sb.append(context.getString(R.string.perf_overlay_dectime));
+            format = sb.toString().replaceAll("[0-9]\\$", "");
+        }
+
         infoTimer = new Timer();
         infoTimer.schedule(new TimerTask(){
             public void run() {
-                String format = context.getResources().getString(R.string.perf_overlay_text);
+//                String format = context.getResources().getString(R.string.perf_overlay_text);
                 if (nativeVideoDecoder != 0) {
                     String info = MoonBridge.formatDecoderInfo(nativeVideoDecoder, format);
                     perfListener.onPerfUpdate(info);
@@ -532,17 +547,20 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
                     }
 
                     float decodeTimeMs = (float)lastTwo.decoderTimeMs / lastTwo.totalFramesReceived;
-                    String perfText = context.getString(
-                            R.string.perf_overlay_text,
-                            initialWidth + "x" + initialHeight,
-                            decoder,
-                            fps.totalFps,
-                            fps.receivedFps,
-                            fps.renderedFps,
-                            (float)lastTwo.framesLost / lastTwo.totalFrames * 100,
-                            ((float)lastTwo.totalTimeMs / lastTwo.totalFramesReceived) - decodeTimeMs,
-                            decodeTimeMs);
-                    perfListener.onPerfUpdate(perfText);
+                    long rttInfo = MoonBridge.getEstimatedRttInfo();
+                    StringBuilder sb = new StringBuilder();
+	                sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, fps.totalFps)).append('\n');
+	                sb.append(context.getString(R.string.perf_overlay_decoder, decoder)).append('\n');
+	                sb.append(context.getString(R.string.perf_overlay_incomingfps, fps.receivedFps)).append('\n');
+	                sb.append(context.getString(R.string.perf_overlay_renderingfps, fps.renderedFps)).append('\n');
+	                sb.append(context.getString(R.string.perf_overlay_netdrops,
+	                        (float)lastTwo.framesLost / lastTwo.totalFrames * 100)).append('\n');
+	                sb.append(context.getString(R.string.perf_overlay_netlatency,
+	                        (int)(rttInfo >> 32), (int)rttInfo)).append('\n');
+	                sb.append(context.getString(R.string.perf_overlay_recvtime,
+	                        ((float)lastTwo.totalTimeMs / lastTwo.totalFramesReceived) - decodeTimeMs)).append('\n');
+	                sb.append(context.getString(R.string.perf_overlay_dectime, decodeTimeMs));
+	                perfListener.onPerfUpdate(sb.toString());
                 }
             }
         }, 0, 1000);

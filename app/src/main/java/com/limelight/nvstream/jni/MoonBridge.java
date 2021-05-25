@@ -317,6 +317,9 @@ public class MoonBridge {
 
     public static native String stringifyPortFlags(int portFlags, String separator);
 
+    // The RTT is in the top 32 bits, and the RTT variance is in the bottom 32 bits
+    public static native long getEstimatedRttInfo();
+
     public static native void init();
 
     public static native void nativeCopy(ByteBuffer buffer0, int offset0, ByteBuffer buffer1, int offset1, int length);
