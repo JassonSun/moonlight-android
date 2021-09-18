@@ -1046,6 +1046,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
 
                 submitCsdNextCall = false;
             }
+
+            numFramesIn++;
         }
 
         if (decodeUnitLength > buf.limit() - buf.position()) {
@@ -1215,7 +1217,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
                 str = "ErrorWhileStreaming";
             }
 
-            str += ": \n";
+            str += ": 1\n";
             str += "Format: "+String.format("%x", renderer.videoFormat)+"\n";
             str += "AVC Decoder: "+((renderer.avcDecoder != null) ? renderer.avcDecoder.getName():"(none)")+"\n";
             str += "HEVC Decoder: "+((renderer.hevcDecoder != null) ? renderer.hevcDecoder.getName():"(none)")+"\n";
@@ -1249,6 +1251,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer {
             str += "Adaptive playback: "+renderer.adaptivePlayback+"\n";
             str += "GL Renderer: "+renderer.glRenderer+"\n";
             str += "Build fingerprint: "+Build.FINGERPRINT+"\n";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                str += "SOC: "+Build.SOC_MANUFACTURER+" - "+Build.SOC_MODEL+"\n";
+                str += "Performance class: "+Build.VERSION.MEDIA_PERFORMANCE_CLASS+"\n";
+            }
             str += "Foreground: "+renderer.foreground+"\n";
             str += "Consecutive crashes: "+renderer.consecutiveCrashCount+"\n";
             str += "RFI active: "+renderer.refFrameInvalidationActive+"\n";

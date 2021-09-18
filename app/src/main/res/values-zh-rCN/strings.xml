@@ -166,8 +166,8 @@
     <string name="category_advanced_settings"> 高级设置 </string>
     <string name="title_disable_frame_drop"> 永不掉帧 </string>
     <string name="summary_disable_frame_drop"> 可能会减少在一些设备上的卡顿，但会增加延迟 </string>
-    <string name="title_video_format"> 更改H.265设置 </string>
-    <string name="summary_video_format">H.265能降低视频带宽需求，但需要较新的设备才能支持</string>
+    <string name="title_video_format"> 更改HEVC设置 </string>
+    <string name="summary_video_format">HEVC能降低视频带宽需求，但需要较新的设备才能支持</string>
     <string name="title_enable_hdr"> 启用 HDR （实验） </string>
     <string name="summary_enable_hdr"> 当游戏和显卡支持时以HDR模式串流。 HDR需要GTX 1000系列或更高规格显卡。 </string>
     <string name="title_enable_perf_overlay"> 启用性能信息 </string>
@@ -216,6 +216,8 @@
     <string name="no_video_received_error">没有接收到来自主机的视频。</string>
     <string name="video_decoder_init_failed">视频解码器初始化失败。您的设备可能不支持选定的分辨率或帧数。</string>
     <string name="nettest_text_blocked">您设备当前的网络连接拦截了Moonlight。连接到该网络时可能无法通过互联网串流。</string>
+    <string name="perf_overlay_netlatency">平均网络延迟： %1$d ms (抖动： %2$d ms)</string>
+    <string name="perf_overlay_streamdetails">视频流： %1$s %2$.2f FPS</string>
     
     <string name="title_bufferbar_count"> 缓冲区数量 </string>
     <string name="summary_bufferbar_count"> 画面实时性和稳定性的取舍。 \n 缓冲区越大，画面越稳定，但延迟会变高。</string>

@@ -57,6 +57,13 @@ Java_com_limelight_nvstream_jni_MoonBridge_sendMouseHighResScroll(JNIEnv *env, j
 }
 
 JNIEXPORT void JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_sendUtf8Text(JNIEnv *env, jclass clazz, jstring text) {
+    const char* utf8Text = (*env)->GetStringUTFChars(env, text, NULL);
+    LiSendUtf8TextEvent(utf8Text, strlen(utf8Text));
+    (*env)->ReleaseStringUTFChars(env, text, utf8Text);
+}
+
+JNIEXPORT void JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_stopConnection(JNIEnv *env, jclass clazz) {
     LiStopConnection();
 }
@@ -125,6 +132,17 @@ Java_com_limelight_nvstream_jni_MoonBridge_getPortFlagsFromStage(JNIEnv *env, jc
 JNIEXPORT jint JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_getPortFlagsFromTerminationErrorCode(JNIEnv *env, jclass clazz, jint errorCode) {
     return LiGetPortFlagsFromTerminationErrorCode(errorCode);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_stringifyPortFlags(JNIEnv *env, jclass clazz, jint portFlags, jstring separator) {
+    const char* separatorStr = (*env)->GetStringUTFChars(env, separator, NULL);
+    char outputBuffer[512];
+
+    LiStringifyPortFlags(portFlags, separatorStr, outputBuffer, sizeof(outputBuffer));
+
+    (*env)->ReleaseStringUTFChars(env, separator, separatorStr);
+    return (*env)->NewStringUTF(env, outputBuffer);
 }
 
 JNIEXPORT jlong JNICALL

@@ -8,11 +8,12 @@ before_build:
   - 'git submodule update --init --recursive'
   - 'mklink /D C:\android-sdk "C:\Program Files (x86)\Android\android-sdk"'
   - 'set ANDROID_HOME=C:\android-sdk'
+  - 'set JAVA_HOME=C:\Program Files\Java\jdk11'
 
 build_script:
   - gradlew.bat build connectedCheck
 
 after_build:
-  - 'appveyor PushArtifact app\build\reports\lint-results.html'
+  - 'appveyor PushArtifact app\build\reports\lint-results-nonRootDebug.html'
 
 deploy: off

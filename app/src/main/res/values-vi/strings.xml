@@ -6,8 +6,8 @@
     <string name="title_enable_perf_overlay">Hiện thống kê hiệu năng trong khi stream</string>
     <string name="summary_enable_hdr">Stream HDR khi trò chơi và GPU của PC hỗ trợ nó. HDR yêu cầu GPU GTX series 1000 hoặc mới hơn.</string>
     <string name="title_enable_hdr">Bật HDR (Thử nghiệm)</string>
-    <string name="summary_video_format">H.265 làm giảm yêu cầu băng thông video nhưng yêu cầu một thiết bị mới hơn</string>
-    <string name="title_video_format">Thay đổi cài đặt H.265</string>
+    <string name="summary_video_format">HEVC làm giảm yêu cầu băng thông video nhưng yêu cầu một thiết bị mới hơn</string>
+    <string name="title_video_format">Thay đổi cài đặt HEVC</string>
     <string name="summary_disable_frame_drop">Có thể làm giảm sự khựng nhỏ trên một số thiết bị, nhưng có thể làm tăng độ trễ</string>
     <string name="title_disable_frame_drop">Không bao giờ giảm khung hình</string>
     <string name="summary_checkbox_disable_warnings">Tắt các thông báo cảnh báo kết nối trên màn hình trong khi stream</string>
@@ -109,7 +109,6 @@
     <string name="perf_overlay_incomingfps">Tốc độ khung hình đang đến từ mạng: %1$.2f FPS</string>
     <string name="perf_overlay_renderingfps">Tốc độ khung hình kết xuất: %1$.2f FPS</string>
     <string name="perf_overlay_netdrops">Khung hình bị giảm bởi kết nối mạng: %1$.2f%%</string>
-    <string name="perf_overlay_recvtime">Thời gian nhận trung bình: %1$.2f ms</string>
     <string name="perf_overlay_dectime">Thời gian giải mã trung bình: %1$.2f ms</string>
     <string name="poor_connection_msg">Kết nối đến PC bị kém</string>
     <string name="slow_connection_msg">Kết nối đến PC bị chậm.
@@ -205,4 +204,7 @@
     <string name="scut_pc_not_found">Không tìm thấy PC</string>
     <string name="scut_not_paired">PC chưa được ghép đôi</string>
     <string name="scut_deleted_pc">PC đã bị xoá</string>
+    <string name="perf_overlay_netlatency">Độ trễ mạng trung bình: %1$d ms (sai số: %2$d ms)</string>
+    <string name="perf_overlay_streamdetails">Tốc độ khung hình: %1$s %2$.2f FPS</string>
+    <string name="resolution_prefix_native_fullscreen">Toàn màn hình theo hệ thống</string>
 </resources>
