@@ -318,7 +318,11 @@ int dequeueOutputBuffer(VideoDecoder* videoDecoder, AMediaCodecBufferInfo *info,
     }
 
 #else
+
     outputIndex = _dequeueOutputBuffer(videoDecoder, info, timeoutUs); // -1 to block test
+
+
+
     if (outputIndex >= 0)  {
         // 不丢帧逻辑: 常规模式（缓冲==0）时，是-1帧模式，不会触发高解码延迟，所以不用丢。(但会造成画面突然严重延迟)
         // 而非立即模式，提交都很快，不丢帧也不会触发高解码延迟。
@@ -568,14 +572,23 @@ void* rendering_thread(VideoDecoder* videoDecoder)
 
     while(!videoDecoder->stopping) {
 
-        int outIndex = dequeueOutputBuffer(videoDecoder, &info, usTimeout);
+
+//        int64_t a =  getTimeUsec();
+        // 立即获取缓冲区，以加快呈现进度
+        int outIndex = dequeueOutputBuffer(videoDecoder, &info, /*usTimeout*/0);
+
+//        int64_t b = (getTimeUsec() - a)/1000;
+//        videoDecoder->activeWindowVideoStats.decoderTimeMs = b;
+//        LOGT("解码时间: %d\n", b);
+
         if (outIndex >= 0) {
 
             // 统计解码延迟
             {
                 videoDecoder->activeWindowVideoStats.totalFramesRendered ++;
                 // Add delta time to the totals (excluding probable outliers)
-                uint64_t delta = (/*getTimeUsec()*/getClockUsec() - info.presentationTimeUs) / 1000;
+                int64_t delta = (/*getTimeUsec()*/getClockUsec() - info.presentationTimeUs) / 1000;
+
                 if (delta >= 0 && delta < 1000) {
                     videoDecoder->activeWindowVideoStats.decoderTimeMs += delta;
                     if (!USE_FRAME_RENDER_TIME) {
