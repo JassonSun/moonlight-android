@@ -318,11 +318,7 @@ int dequeueOutputBuffer(VideoDecoder* videoDecoder, AMediaCodecBufferInfo *info,
     }
 
 #else
-
     outputIndex = _dequeueOutputBuffer(videoDecoder, info, timeoutUs); // -1 to block test
-
-
-
     if (outputIndex >= 0)  {
         // 不丢帧逻辑: 常规模式（缓冲==0）时，是-1帧模式，不会触发高解码延迟，所以不用丢。(但会造成画面突然严重延迟)
         // 而非立即模式，提交都很快，不丢帧也不会触发高解码延迟。
@@ -558,6 +554,11 @@ void VideoDecoder_release(VideoDecoder* videoDecoder) {
 //    return 0;
 //}
 
+static float test_a = 0;
+static float test_b = 0;
+
+//#define TEST_AB
+
 void* rendering_thread(VideoDecoder* videoDecoder)
 {
     // Try to output a frame
@@ -570,16 +571,28 @@ void* rendering_thread(VideoDecoder* videoDecoder)
     uint32_t frame_Index = 0;
     bool last_immediate = false;
 
+    bool immediate = false;
+    if (videoDecoder->bufferCount == 0)
+    {
+        // usTimeout = 1;
+        immediate = true;
+    }
+
     while(!videoDecoder->stopping) {
 
-
-//        int64_t a =  getTimeUsec();
+#ifdef TEST_AB
+        int64_t a =  getTimeUsec();
+#endif
         // 立即获取缓冲区，以加快呈现进度
-        int outIndex = dequeueOutputBuffer(videoDecoder, &info, /*usTimeout*/0);
+        // int outIndex = dequeueOutputBuffer(videoDecoder, &info, usTimeout*2);
+        int outIndex = dequeueOutputBuffer(videoDecoder, &info, 1);
 
-//        int64_t b = (getTimeUsec() - a)/1000;
-//        videoDecoder->activeWindowVideoStats.decoderTimeMs = b;
-//        LOGT("解码时间: %d\n", b);
+#ifdef TEST_AB
+        int64_t b = (getTimeUsec() - a)/1000;
+        test_a = b;
+        // videoDecoder->activeWindowVideoStats.decoderTimeMs = b;
+        LOGT("解码时间1: %d\n", b);
+#endif
 
         if (outIndex >= 0) {
 
@@ -603,15 +616,18 @@ void* rendering_thread(VideoDecoder* videoDecoder)
             // } else 
             {
                 // 立即渲染：只发生在无缓冲区的情况下
-                bool immediate = false;//videoDecoder->bufferCount < 1;
-
+                // bool immediate = videoDecoder->bufferCount < 1;
+#ifdef TEST_AB
+                int64_t a =  getTimeUsec();
+#endif
                 if (immediate) {
                     LOGT("[test] - 渲染 立即模式");
-                    if (videoDecoder->bufferCount == 0) {
+                    // if (videoDecoder->bufferCount == 0) {
                         AMediaCodec_releaseOutputBuffer(videoDecoder->codec, outIndex, info.size != 0);
-                    } else {
-                        AMediaCodec_releaseOutputBufferAtTime(videoDecoder->codec, outIndex, getClockNanc());
-                    }
+                    // } else
+                    // {
+                    // AMediaCodec_releaseOutputBufferAtTime(videoDecoder->codec, outIndex, getClockNanc());
+                    // }
                 } else {
 
                     // 计算帧显示的准确时间戳(通过延迟一帧来算) 这里的时间结果必须是clock nanc，所以必须统一为clock
@@ -630,7 +646,7 @@ void* rendering_thread(VideoDecoder* videoDecoder)
                     int limitBufferCount = videoDecoder->bufferCount;
                     double delay_frame = 1;
 
-                    if (videoDecoder->bufferCount == 0) {
+                    if (videoDecoder->bufferCount == 1) {
                         delay_frame = 0.5;
                         limitBufferCount = 1;
                     }
@@ -660,10 +676,17 @@ void* rendering_thread(VideoDecoder* videoDecoder)
                     }
 
                     LOGT("[test] - 渲染 非立即模式");
+
                     AMediaCodec_releaseOutputBufferAtTime(videoDecoder->codec, outIndex, rendering_time);
                 }
 
                 last_immediate = immediate;
+
+#ifdef TEST_AB
+                int64_t b = (getTimeUsec() - a)/1000;
+                test_b = b;
+                LOGT("解码时间2: %d\n", b);
+#endif
             }
 
         } else {
@@ -1322,9 +1345,16 @@ const char* VideoDecoder_formatInfo(VideoDecoder* videoDecoder, const char* form
                         ,(float)fps.receivedFps
                         ,fps.renderedFps
                         ,(float)lastTwo.framesLost / lastTwo.totalFrames * 100
-                        ,(int)(rttInfo >> 32), (int)rttInfo
+                        ,(int)(rttInfo >> 32),
+#ifdef TEST_AB
+            (int)decodeTimeMs
+            ,(float)test_a
+            ,(float)test_b
+#else
+                        (int)rttInfo
                         ,((float)lastTwo.totalTimeMs / lastTwo.totalFramesReceived) - decodeTimeMs
                         ,decodeTimeMs
+#endif
                         );
 //    sprintf(videoDecoder->infoBuffer, "%d %d %ld\n%d %d %ld",
 //            videoDecoder->lastWindowVideoStats.totalFramesReceived, videoDecoder->lastWindowVideoStats.totalFramesRendered, videoDecoder->lastWindowVideoStats.totalTimeMs,

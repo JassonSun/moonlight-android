@@ -20,7 +20,7 @@ android {
         signingConfig signingConfigs.nonRootRelease
 
         versionName "9.10.1"
-        versionCode = 271
+        versionCode = 272
     }
 
     flavorDimensions "root"
