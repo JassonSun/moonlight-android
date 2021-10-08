@@ -100,18 +100,18 @@ const int InputBufferCacheSize = 20;
 const int OutputBufferCacheSize = 20;
 
 // 封装解码提交和获取的api，增加decodingCount计数器功能
-bool _queueInputBuffer(VideoDecoder* videoDecoder, size_t idx,
-                                 size_t size,
-                                 uint64_t time, uint32_t flags) {
-
-    AMediaCodec_queueInputBuffer(videoDecoder->codec, idx, 0, size, time,
-                                          flags);
-    if (idx >= 0) {
-        videoDecoder->decodingCount ++;
-    }
-
-    return true;
-}
+//bool _queueInputBuffer(VideoDecoder* videoDecoder, size_t idx,
+//                                 size_t size,
+//                                 uint64_t time, uint32_t flags) {
+//
+//    AMediaCodec_queueInputBuffer(videoDecoder->codec, idx, 0, size, time,
+//                                          flags);
+//    if (idx >= 0) {
+//        videoDecoder->decodingCount ++;
+//    }
+//
+//    return true;
+//}
 
 ssize_t _dequeueOutputBuffer(VideoDecoder* videoDecoder, AMediaCodecBufferInfo *info,
                              int64_t timeoutUs) {
@@ -194,7 +194,7 @@ static inline void* _getInputBuffer(VideoDecoder* videoDecoder, int index, size_
 }
 
 // 提交输入
-bool _queueInputBuffer2(VideoDecoder* videoDecoder, int index, size_t bufsize, uint64_t timestampUs, uint32_t codecFlags) {
+bool _queueInputBufferWithCount(VideoDecoder* videoDecoder, int index, size_t bufsize, uint64_t timestampUs, uint32_t codecFlags, bool frameCount) {
 
 #if VD_BUFFER_CACHE_MODE
 
@@ -239,8 +239,21 @@ bool _queueInputBuffer2(VideoDecoder* videoDecoder, int index, size_t bufsize, u
     AMediaCodec_queueInputBuffer(videoDecoder, index, 0, bufsize, timestampUs,
                                  codecFlags);
 
+    if (frameCount) {
+        if (index >= 0) {
+            videoDecoder->decodingCount++;
+        }
+    }
 
     return true;
+}
+
+bool _queueInputBufferNoCount(VideoDecoder* videoDecoder, int index, size_t bufsize, uint64_t timestampUs, uint32_t codecFlags) {
+    return _queueInputBufferWithCount(videoDecoder, index, bufsize, timestampUs, codecFlags, false);
+}
+
+bool _queueInputBuffer(VideoDecoder* videoDecoder, int index, size_t bufsize, uint64_t timestampUs, uint32_t codecFlags) {
+    return _queueInputBufferWithCount(videoDecoder, index, bufsize, timestampUs, codecFlags, true);
 }
 
 // 请求输出
@@ -794,7 +807,7 @@ void VideoDecoder_start(VideoDecoder* videoDecoder) {
 void VideoDecoder_stop(VideoDecoder* videoDecoder) {
 
     videoDecoder->stopping = true;
-//    sem_post(&videoDecoder->queuing_sem);
+    // sem_post(&videoDecoder->queuing_sem);
 }
 
 typedef enum {
@@ -810,7 +823,7 @@ void doProfileSpecificSpsPatching(sps_t* sps, bool constrainedHighProfile) {
     // reduce delay and buffering accordingly. Some devices (Marvell, Exynos 4) don't
     // like it so we only set them on devices that are confirmed to benefit from it.
     if (sps->profile_idc == 100 && constrainedHighProfile) {
-//        LimeLog.info("Setting constraint set flags for constrained high profile");
+    // LimeLog.info("Setting constraint set flags for constrained high profile");
         sps->constraint_set4_flag = true;
         sps->constraint_set5_flag = true;
     }
@@ -872,15 +885,13 @@ bool replaySps(VideoDecoder* videoDecoder) {
     // inputBuffer.timestampUs = System.nanoTime() / 1000;
     // inputBuffer.codecFlags = MediaCodec.BUFFER_FLAG_CODEC_CONFIG;
 
-    return _queueInputBuffer2(videoDecoder, inputIndex, inputBufPos,
+    return _queueInputBufferNoCount(videoDecoder, inputIndex, inputBufPos,
             /*getTimeUsec()*/getClockUsec(), // 参与时间计算
             BUFFER_FLAG_CODEC_CONFIG);
     // return queueInputBuffer(inputIndex,
     //        0, inputBuffer.position(),
     //        System.nanoTime() / 1000,
     //        MediaCodec.BUFFER_FLAG_CODEC_CONFIG);
-    // return queueInputBuffer(inputBuffer);
-    // return true;
 }
 
 void patchSPS(VideoDecoder* videoDecoder, const uint8_t* data, size_t decodeUnitLength, void* sps_buffer) {
@@ -951,7 +962,7 @@ void patchSPS(VideoDecoder* videoDecoder, const uint8_t* data, size_t decodeUnit
         // GFE 2.5.11 started sending bitstream restrictions
         if (sps.vui.bitstream_restriction_flag == 0) {
             LOGT("Adding bitstream restrictions");
-//        sps.vuiParams.bitstreamRestriction = new VUIParameters.BitstreamRestriction();
+            // sps.vuiParams.bitstreamRestriction = new VUIParameters.BitstreamRestriction();
             sps.vui.motion_vectors_over_pic_boundaries_flag = true;
             sps.vui.log2_max_mv_length_horizontal = 16;
             sps.vui.log2_max_mv_length_vertical = 16;
