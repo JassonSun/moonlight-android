@@ -236,7 +236,7 @@ bool _queueInputBufferWithCount(VideoDecoder* videoDecoder, int index, size_t bu
 #endif
 
     // Push to codec
-    AMediaCodec_queueInputBuffer(videoDecoder, index, 0, bufsize, timestampUs,
+    AMediaCodec_queueInputBuffer(videoDecoder->codec, index, 0, bufsize, timestampUs,
                                  codecFlags);
 
     if (frameCount) {
